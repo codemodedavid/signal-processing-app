@@ -1,0 +1,79 @@
+#include "signal_data.h"
+
+
+// ctors
+SignalData::SignalData() {
+
+};
+
+SignalData::SignalData(const unsigned char* header) {
+    memcpy(riff, header + 0, 4);
+    memcpy(&fileSizeMinus8, header + 4, 4);
+    memcpy(wave, header + 8, 4);
+    memcpy(fmt, header + 12, 4);
+    memcpy(&formatChunkSize, header + 16, 4);
+    memcpy(&audioFormat, header + 20, 2);
+    memcpy(&channels, header + 22, 2);
+    memcpy(&sampleRate, header + 24, 4);
+    memcpy(&byteRate, header + 28, 4);
+    memcpy(&blockAlign, header + 32, 2);
+    memcpy(&bitsPerSample, header + 34, 2);
+    memcpy(data, header + 36, 4);
+    memcpy(&dataSize, header + 40, 4);
+
+    sampleCount=dataSize / blockAlign;
+};
+
+// setters
+void SignalData::setDataSize(long dataSize) {
+    this->dataSize = dataSize;
+};
+void SignalData::setSampleRate(long sampleRate) {
+    this->sampleRate = sampleRate;
+};
+void SignalData::setSampleCount(long sampleCount) {
+    this->sampleCount = sampleCount;
+};
+
+// getters
+long SignalData::getDataSize() {
+    return dataSize;
+};
+long SignalData::getSampleRate() {
+    return sampleRate;
+};
+long SignalData::getSampleCount() {
+    return sampleCount;
+};
+
+int SignalData::getBitsPerSample() {
+    return bitsPerSample;
+}
+int SignalData::getBytesPerSample() {
+    return bitsPerSample/8;
+}
+int SignalData::getChannels() {
+    return channels;
+}
+
+int SignalData::getBlockAlign() {
+    return blockAlign;
+}
+
+// afisare
+void SignalData::printHeaderData() {
+    std::cout << "riff: " << std::string(riff, 4) << "\n";
+    std::cout << "fileSizeMinus8: " << fileSizeMinus8 << "\n";
+    std::cout << "wave: " << std::string(wave, 4) << "\n";
+    std::cout << "fmt: " << std::string(fmt, 4) << "\n";
+    std::cout << "formatChunkSize: " << formatChunkSize << "\n";
+    std::cout << "audioFormat: " << audioFormat << "\n";
+    std::cout << "channels: " << channels << "\n";
+    std::cout << "sampleRate: " << sampleRate << "\n";
+    std::cout << "byteRate: " << byteRate << "\n";
+    std::cout << "blockAlign: " << blockAlign << "\n";
+    std::cout << "bitsPerSample: " << bitsPerSample << "\n";
+    std::cout << "data: " << std::string(data, 4) << "\n";
+    std::cout << "dataSize: " << dataSize << "\n";
+    std::cout << "sampleCount: " << sampleCount << "\n";
+};
