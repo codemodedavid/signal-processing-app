@@ -36,32 +36,32 @@ void SignalData::setSampleCount(long sampleCount) {
 };
 
 // getters
-long SignalData::getDataSize() {
+long SignalData::getDataSize() const {
     return dataSize;
 };
-long SignalData::getSampleRate() {
+long SignalData::getSampleRate() const {
     return sampleRate;
 };
-long SignalData::getSampleCount() {
+long SignalData::getSampleCount() const {
     return sampleCount;
 };
 
-int SignalData::getBitsPerSample() {
+int SignalData::getBitsPerSample() const {
     return bitsPerSample;
 }
-int SignalData::getBytesPerSample() {
+int SignalData::getBytesPerSample() const {
     return bitsPerSample/8;
 }
-int SignalData::getChannels() {
+int SignalData::getChannels() const {
     return channels;
 }
 
-int SignalData::getBlockAlign() {
+int SignalData::getBlockAlign() const {
     return blockAlign;
 }
 
 // afisare
-void SignalData::printHeaderData() {
+void SignalData::printHeaderData() const {
     std::cout << "riff: " << std::string(riff, 4) << "\n";
     std::cout << "fileSizeMinus8: " << fileSizeMinus8 << "\n";
     std::cout << "wave: " << std::string(wave, 4) << "\n";

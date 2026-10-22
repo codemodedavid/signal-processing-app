@@ -44,14 +44,14 @@ public:
     void setSampleRate(long sampleRate);
     void setSampleCount(long sampleCount);
 
-    long getDataSize();
-    long getSampleRate();
-    long getSampleCount();
-    int getBitsPerSample();
-    int getBytesPerSample();
-    int getChannels();
-    int getBlockAlign();
+    long getDataSize() const;
+    long getSampleRate() const;
+    long getSampleCount() const;
+    int getBitsPerSample() const;
+    int getBytesPerSample() const;
+    int getChannels() const;
+    int getBlockAlign() const;
 
-    void printHeaderData();
+    void printHeaderData() const;
 };
 #endif
