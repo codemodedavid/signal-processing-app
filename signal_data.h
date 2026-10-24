@@ -52,6 +52,8 @@ public:
     int getChannels() const;
     int getBlockAlign() const;
 
+    unsigned char* getHeader() const;
+
     void printHeaderData() const;
 };
 #endif

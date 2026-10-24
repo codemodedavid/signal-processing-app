@@ -60,6 +60,24 @@ int SignalData::getBlockAlign() const {
     return blockAlign;
 }
 
+unsigned char* SignalData::getHeader() const {
+    unsigned char* header = new unsigned char[44];
+    memcpy(header + 0, riff, 4);
+    memcpy(header + 4, &fileSizeMinus8, 4);
+    memcpy(header + 8, wave, 4);
+    memcpy(header + 12, fmt, 4);
+    memcpy(header + 16, &formatChunkSize, 4);
+    memcpy(header + 20, &audioFormat, 2);
+    memcpy(header + 22, &channels, 2);
+    memcpy(header + 24, &sampleRate, 4);
+    memcpy(header + 28, &byteRate, 4);
+    memcpy(header + 32, &blockAlign, 2);
+    memcpy(header + 34, &bitsPerSample, 2);
+    memcpy(header + 36, data, 4);
+    memcpy(header + 40, &dataSize, 4);
+
+    return header;
+}
 // afisare
 void SignalData::printHeaderData() const {
     std::cout << "riff: " << std::string(riff, 4) << "\n";

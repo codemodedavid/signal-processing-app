@@ -3,6 +3,7 @@
 #define SIGNAL_H
 
 #include "signal_data.h"
+#include <cstdint>
 #include <cstdio>
 #include <cmath>
 
@@ -15,9 +16,13 @@ class Signal {
     static float decode16(const char* data);
     static float decode32(const char* data);
 
-    static int8_t encode8(float data);
+    static uint8_t encode8(float data);
     static int16_t encode16(float data);
     static int32_t encode32(float data);
+
+    void write8(FILE* file);
+    void write16(FILE* file);
+    void write32(FILE* file);
 
     float* reconstruct(long center, long vecinity, float time) const;
     
@@ -27,11 +32,14 @@ public:
     ~Signal();
     Signal(const Signal& other);
     
-    Signal operator*(const Signal& other);
+    Signal& operator*(const Signal& other);
 
     Signal& resample(float new_sampling_rate);
 
-    void printData() const;
+    void saveWav(const char* name);
+
+    void printDataSample(uint32_t start, uint32_t finish) const;
+    void printDataTime(float start, float finish) const;
 };
 
 #endif

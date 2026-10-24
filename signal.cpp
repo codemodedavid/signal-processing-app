@@ -1,11 +1,12 @@
 #include "signal.h"
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 
 
 // constructor + init
-Signal::Signal(int number_of_channels, long number_of_samples) {
+Signal::Signal(int number_of_channels, long number_of_samples) { // init empty signal with nr. of channels and samples
     name = nullptr;
     
     data = nullptr;
@@ -16,7 +17,7 @@ Signal::Signal(int number_of_channels, long number_of_samples) {
     }
 };
 
-Signal::Signal(const char* name) {
+Signal::Signal(const char* name) { // init a signal based on a given .wav file path
     this->name = new char[strlen(name) -4 + 1 ];
     int i;
     for(i=0; i<strlen(name); i++) {
@@ -30,7 +31,7 @@ Signal::Signal(const char* name) {
     // opening file by path
     FILE* file_in = fopen(name, "rb");
     if(!file_in) {
-        printf("Cannot open signal A");
+        printf("Cannot open signal A\n");
         return;
     }
     
@@ -108,11 +109,11 @@ Signal::Signal(const Signal& other) {
 };
 
 // convolution operator
-Signal Signal::operator*(const Signal& other) {
-    return 0;
-};
+// Signal& Signal::operator*(const Signal& other) {
+//     return nullptr;
+// };
 
-float* Signal::reconstruct(long center, long vecinity, float time) const {
+float* Signal::reconstruct(long center, long vecinity, float time) const { // reconstructs singal needed for resampling, in order to compute values at given sample rate
 
     float* value = new float[data.getChannels()]();
     float Ts = 1.0 / data.getSampleRate();
@@ -135,18 +136,21 @@ float* Signal::reconstruct(long center, long vecinity, float time) const {
         }
     }
     return value;
-}
+};
 
-float** createBuffer(int number_of_channels, long number_of_samples) {
+float** createBuffer(int number_of_channels, long number_of_samples) { // creates buffer for the signal data: buffer[channel][samples]
 
     float** buffer = new float*[number_of_channels];
     for(int i=0; i<number_of_channels; i++) {
         buffer[i] = new float[number_of_samples];
     }
     return buffer;
-}
+};
 
-Signal& Signal::resample(float new_sampling_rate) {
+Signal& Signal::resample(float new_sampling_rate) { // resamples any signal to a certain bitrate using reconstruction using sinc interpolation 
+
+    std::cout << 1.0f * data.getSampleCount() / data.getSampleRate() << "\n";
+
     long old_sampling_rate = data.getSampleRate();
     if(std::abs((old_sampling_rate - new_sampling_rate) / new_sampling_rate) <= 0.001) {
         return *this;
@@ -154,20 +158,22 @@ Signal& Signal::resample(float new_sampling_rate) {
     long new_sample_count = static_cast<long>(data.getSampleCount() * new_sampling_rate / old_sampling_rate);
 
     float** buff_channel = createBuffer(data.getChannels(), new_sample_count);
-    float Ts = 1.0 / new_sampling_rate;
-    float time = 0.0;
+    double Ts = 1.0 / new_sampling_rate;
+    double time = 0.0;
 
     for(long sample_count=0; sample_count<new_sample_count; sample_count++) {
 
+        float time = static_cast<float>(sample_count) / new_sampling_rate;
         long center = static_cast<long>(time * data.getSampleRate());
-        float* updated_samples = reconstruct(center, 10, time);
+
+        float* updated_samples = reconstruct(center, 100, time);
 
         for(int c=0; c<data.getChannels(); c++) {
             buff_channel[c][sample_count] = updated_samples[c];
+            //buff_channel[c][sample_count] = sin(time*M_PI*40)/2;
         }
 
         delete[] updated_samples;
-        time += Ts;
     }
 
     for(int i = 0; i < data.getChannels(); i++)
@@ -181,11 +187,38 @@ Signal& Signal::resample(float new_sampling_rate) {
 
     data.setSampleRate(new_sampling_rate);
     data.setSampleCount(new_sample_count);
+    data.setDataSize(new_sample_count * data.getChannels()
+    * (data.getBitsPerSample()/ 8));
 
-    data.printHeaderData();
+    std::cout << 1.0f * data.getSampleCount() / data.getSampleRate() << "\n";
+    //data.printHeaderData(); //debugging
     return *this;
 };
 
+void Signal::saveWav(const char* name) {
+
+    FILE* file_out = fopen(name, "wb");
+    unsigned char* header = data.getHeader();
+    fwrite(header, 1, 44, file_out);
+    delete[] header;
+    switch (data.getBitsPerSample()) {
+        case 8:
+            write8(file_out);
+            break;
+        case 16:
+            write16(file_out);
+            break;
+        case 32:
+            write32(file_out);
+            break;
+        default:
+            printf("unable to write\n");
+            return;
+    }
+    fclose(file_out);
+}
+
+// decoding-encoding functions int-float, float-int respectively
 float Signal::decode8(const char* data) {
     uint8_t value;
     memcpy(&value, data, sizeof(value));
@@ -207,23 +240,73 @@ float Signal::decode32(const char* data) {
     return value / 2147483648.0f;
 };
 
-int8_t Signal::encode8(float data) {
-    int8_t value = static_cast<int8_t>(data * 128.0f + 128);
-    return value;
-}
+uint8_t Signal::encode8(float data) {
+    return static_cast<uint8_t>(data * 128.0f + 128);
+};
 
 int16_t Signal::encode16(float data) {
-    int16_t value = static_cast<int16_t>(data * 32768.0f);
-    return value;
-}
+    return static_cast<int16_t>(data * 32768.0f);
+};
 
 int32_t Signal::encode32(float data) {
-    int32_t value = static_cast<int32_t>(data * 2147483648.0f);
-    return value;
+    return static_cast<int32_t>(data * 2147483648.0f);
+};
+
+void Signal::write8(FILE* file_out) {
+    for (long i = 0; i < data.getSampleCount(); i++) {
+        for (int ch = 0; ch < data.getChannels(); ch++) {
+            uint8_t value = encode8(channel[ch][i]);
+            fwrite(&value, sizeof(value), 1, file_out);
+        }
+    }
 }
 
-void Signal::printData() const {
-    for(int i=0; i< data.getSampleCount(); i++) {
+void Signal::write16(FILE* file_out) {
+    for (long i = 0; i < data.getSampleCount(); i++) {
+        for (int ch = 0; ch < data.getChannels(); ch++) {
+            int16_t value = encode16(channel[ch][i]);
+            fwrite(&value, sizeof(value), 1, file_out);
+        }
+    }
+}
+
+void Signal::write32(FILE* file_out) {
+    for (long i = 0; i < data.getSampleCount(); i++) {
+        for (int ch = 0; ch < data.getChannels(); ch++) {
+            int32_t value = encode32(channel[ch][i]);
+            fwrite(&value, sizeof(value), 1, file_out);
+        }
+    }
+}
+// printing
+void Signal::printDataSample(uint32_t start, uint32_t finish) const {
+    if(start < 0) {
+        start=0;
+    }
+    if (finish > data.getSampleCount()) {
+        finish = data.getSampleCount();
+    }
+    data.printHeaderData();
+    for(int i=start; i< finish; i++) {
+        std::cout << channel[0][i] << "\n";
+    }
+};
+
+void Signal::printDataTime(float start, float finish) const {
+
+    if(start < 0.0f) {
+        start=0.0f;
+    }
+    if (finish > 1.0f * data.getSampleCount() / data.getSampleRate()) {
+        finish = 1.0f * data.getSampleCount() / data.getSampleRate();
+    }
+
+    data.printHeaderData();
+
+    int32_t start_index = static_cast<int32_t>(start * data.getSampleRate());
+    int32_t finish_index = static_cast<int32_t>(finish * data.getSampleRate());
+    for(int i=start_index; i<finish_index; i++) {
         std::cout << channel[0][i]<< "\n";
     }
 };
+
