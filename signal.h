@@ -32,7 +32,8 @@ public:
     ~Signal();
     Signal(const Signal& other);
     
-    Signal& operator*(const Signal& other);
+    //Signal& operator*(const Signal& other);   old operator declaration 
+    Signal operator*(const Signal& other) const;
 
     Signal& resample(float new_sampling_rate);
 

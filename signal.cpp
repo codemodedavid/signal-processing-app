@@ -109,9 +109,67 @@ Signal::Signal(const Signal& other) {
 };
 
 // convolution operator
-// Signal& Signal::operator*(const Signal& other) {
-//     return nullptr;
-// };
+    Signal Signal::operator*(const Signal& other){
+        Signal s2(other); // copy for second signal and we resample it if it has diffrent frenquency
+        if(this->data.getSampleRate() != s2.data.getSampleRate()){
+            s2.resample(this->data.getSampleRate());
+        }
+        long n1 = this->data.getSampleCount();
+        long n2 = s2.data.getSampleCount();
+        long new_sample_count = n1 + n2 - 1;
+        int num_channels = this->data.getChannels(); // 
+
+        Signal result(*this);
+
+        // made a new buffer for the result of convolution
+        for(int c  = 0; c < num_channels ; c++){
+            delete[] result.channel[c];
+        }
+        delete[] result.channel;
+
+        result.channel = createBuffer(num_channels, new_sample_count);
+
+        //initialisize the new buffer
+        for (int c = 0; c < num_channels; c++) {
+            for (long i = 0; i < new_sample_count; i++) {
+                result.channel[c][i] = 0.0f;
+            }
+        }
+        // convolution formula ( the basic one) y[i + j] = x[i] * h[j]
+        for(int c  = 0 ; c < num_channels ; c++){
+            int c2 = (c2 < s2.data.getChannels()) ? c : 0;
+
+            for (long i = 0; i < n1; i++) {
+                for (long j = 0; j < n2; j++) {
+                 result.channel[c][i + j] += this->channel[c][i] * s2.channel[c2][j];
+                }
+            }
+        }
+
+        // normalize the signal in [-1.0, 1.0] so that it does not distort when save in saveWav
+        float max_val = 0.0f;
+            for (int c = 0; c < num_channels; c++) {
+                for (long i = 0; i < new_sample_count; i++) {
+                    if ( std::abs(result.channel[c][i]) > max_val ) {
+                        max_val = std::abs(result.channel[c][i]);
+                    }
+                }
+            }
+
+        if (max_val > 1.0f) {
+            for (int c = 0; c < num_channels; c++) {
+                for (long i = 0; i < new_sample_count; i++) {
+                    result.channel[c][i] /= max_val;
+                }
+            }
+        }
+    // update the dimension in SignalData 
+    result.data.setSampleCount(new_sample_count);
+    result.data.setDataSize(new_sample_count*num_channels*result.data.getBytesPerSample());
+
+    return result;
+     
+ }
 
 float* Signal::reconstruct(long center, long vecinity, float time) const { // reconstructs singal needed for resampling, in order to compute values at given sample rate
 
