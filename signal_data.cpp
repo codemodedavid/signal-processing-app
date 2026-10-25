@@ -35,6 +35,10 @@ void SignalData::setSampleCount(long sampleCount) {
     this->sampleCount = sampleCount;
 };
 
+void SignalData::setChannels(int num_channels) {
+    this->channels = num_channels;
+};
+
 // getters
 long SignalData::getDataSize() const {
     return dataSize;

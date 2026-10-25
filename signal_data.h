@@ -43,6 +43,7 @@ public:
     void setDataSize(long audioSize);
     void setSampleRate(long sampleRate);
     void setSampleCount(long sampleCount);
+    void setChannels(int num_channels);
 
     long getDataSize() const;
     long getSampleRate() const;

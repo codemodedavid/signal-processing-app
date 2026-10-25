@@ -12,20 +12,27 @@ class Signal {
     SignalData data;
     float** channel;
 
+    static float** createBuffer(int number_of_channels, long number_of_samples);
+    static void deleteBuffer(float** buffer, int number_of_channels);
+
     static float decode8(const char* data);
     static float decode16(const char* data);
+    static float decode24(const char* data);
     static float decode32(const char* data);
 
     static uint8_t encode8(float data);
     static int16_t encode16(float data);
+    static int32_t encode24(float data);
     static int32_t encode32(float data);
 
     void write8(FILE* file);
     void write16(FILE* file);
+    void write24(FILE* file);
     void write32(FILE* file);
 
     float* reconstruct(long center, long vecinity, float time) const;
-    
+
+    float getMaxValue();
 public:
     Signal(int number_of_channels, long number_of_samples);
     Signal(const char* name);
@@ -35,7 +42,10 @@ public:
     //Signal& operator*(const Signal& other);   old operator declaration 
     Signal operator*(const Signal& other) const;
 
+
     Signal& resample(float new_sampling_rate);
+    Signal& normalize();
+    //Signal& volume(int increment);
 
     void saveWav(const char* name);
 

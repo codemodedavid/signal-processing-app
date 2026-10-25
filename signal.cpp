@@ -11,10 +11,7 @@ Signal::Signal(int number_of_channels, long number_of_samples) { // init empty s
     
     data = nullptr;
 
-    channel = new float*[number_of_channels];
-    for(int i=0; i<number_of_channels; i++) {
-        channel[i] = new float[number_of_samples];
-    }
+    channel = createBuffer(number_of_channels, number_of_samples);
 };
 
 Signal::Signal(const char* name) { // init a signal based on a given .wav file path
@@ -43,7 +40,7 @@ Signal::Signal(const char* name) { // init a signal based on a given .wav file p
     delete[] header;
 
     // printing header details for debugging
-    this->data.printHeaderData();
+    //this->data.printHeaderData();
 
     // starting signal processing
     float (*decode)(const char*) = nullptr;
@@ -55,6 +52,9 @@ Signal::Signal(const char* name) { // init a signal based on a given .wav file p
         case 16:
             decode = Signal::decode16;
             break;
+        case 24:
+            decode = Signal::decode24;
+            break;
         case 32:
             decode = Signal::decode32;
             break;
@@ -63,12 +63,9 @@ Signal::Signal(const char* name) { // init a signal based on a given .wav file p
             return;
     }
 
-    channel = new float*[data.getChannels()];
-    for(int i=0; i<data.getChannels(); i++) {
-        channel[i] = new float[data.getSampleCount()];
-    }
+    channel = createBuffer(data.getChannels(), data.getSampleCount());
+
     char* frame = new char[data.getBlockAlign()];
-    
 
     for(size_t sampleIndex=0; sampleIndex < data.getSampleCount(); sampleIndex++) {
         fread(frame, 1, data.getBlockAlign(), file_in);
@@ -88,12 +85,7 @@ Signal::~Signal() {
     delete[] name;
     name = nullptr;
 
-    for(int i = 0; i < data.getChannels(); i++)
-    {
-        delete[] channel[i];
-    }
-    delete[] channel;
-    channel = nullptr;
+    deleteBuffer(channel, data.getChannels());
 };
 
 // copy constructor
@@ -109,67 +101,80 @@ Signal::Signal(const Signal& other) {
 };
 
 // convolution operator
-    Signal Signal::operator*(const Signal& other){
-        Signal s2(other); // copy for second signal and we resample it if it has diffrent frenquency
-        if(this->data.getSampleRate() != s2.data.getSampleRate()){
-            s2.resample(this->data.getSampleRate());
-        }
-        long n1 = this->data.getSampleCount();
-        long n2 = s2.data.getSampleCount();
-        long new_sample_count = n1 + n2 - 1;
-        int num_channels = this->data.getChannels(); // 
+Signal Signal::operator*(const Signal& other) const {
+    Signal s2(other); // copy for second signal and we resample it if it has diffrent frenquency
+    if(this->data.getSampleRate() != s2.data.getSampleRate()){
+        s2.resample(this->data.getSampleRate());
+    }
 
-        Signal result(*this);
+    long new_sample_count = this->data.getSampleCount() + s2.data.getSampleCount() - 1;
+    int num_channels = std::max(this->data.getChannels(), s2.data.getChannels());
 
-        // made a new buffer for the result of convolution
-        for(int c  = 0; c < num_channels ; c++){
-            delete[] result.channel[c];
-        }
-        delete[] result.channel;
-
-        result.channel = createBuffer(num_channels, new_sample_count);
-
-        //initialisize the new buffer
-        for (int c = 0; c < num_channels; c++) {
-            for (long i = 0; i < new_sample_count; i++) {
-                result.channel[c][i] = 0.0f;
-            }
-        }
-        // convolution formula ( the basic one) y[i + j] = x[i] * h[j]
-        for(int c  = 0 ; c < num_channels ; c++){
-            int c2 = (c2 < s2.data.getChannels()) ? c : 0;
-
-            for (long i = 0; i < n1; i++) {
-                for (long j = 0; j < n2; j++) {
-                 result.channel[c][i + j] += this->channel[c][i] * s2.channel[c2][j];
-                }
-            }
-        }
-
-        // normalize the signal in [-1.0, 1.0] so that it does not distort when save in saveWav
-        float max_val = 0.0f;
-            for (int c = 0; c < num_channels; c++) {
-                for (long i = 0; i < new_sample_count; i++) {
-                    if ( std::abs(result.channel[c][i]) > max_val ) {
-                        max_val = std::abs(result.channel[c][i]);
-                    }
-                }
-            }
-
-        if (max_val > 1.0f) {
-            for (int c = 0; c < num_channels; c++) {
-                for (long i = 0; i < new_sample_count; i++) {
-                    result.channel[c][i] /= max_val;
-                }
-            }
-        }
-    // update the dimension in SignalData 
+    // initialize result
+    Signal result(*this);
     result.data.setSampleCount(new_sample_count);
-    result.data.setDataSize(new_sample_count*num_channels*result.data.getBytesPerSample());
+    result.data.setDataSize(new_sample_count * num_channels * result.data.getBytesPerSample());
+    result.data.setChannels(num_channels);
 
+    // made a new buffer for the result of convolution
+    deleteBuffer(result.channel, result.data.getChannels());
+    result.channel = createBuffer(num_channels, new_sample_count);
+
+    // convolution formula ( the basic one) y[i + j] = x[i] * h[j]
+
+    for(int ch = 0 ; ch < num_channels; ch++) {
+        int ch_s1;
+        int ch_s2;
+
+        if (this->data.getChannels() == 1) {
+            ch_s1 = 0;
+        } else {
+            ch_s1 = ch;
+        }
+        if (s2.data.getChannels() == 1) {
+            ch_s2 = 0;
+        } else {
+            ch_s2 = ch;
+        }
+
+        for (long i = 0; i < this->data.getSampleCount(); i++) {
+            for (long j = 0; j < s2.data.getSampleCount(); j++) {
+                result.channel[ch][i + j] += this->channel[ch_s1][i] * s2.channel[ch_s2][j];
+            }
+        }
+    }
+
+    // normalize the signal in [-1.0, 1.0] so that it does not distort when save in saveWav
+    result.normalize();
+    
     return result;
-     
  }
+
+
+float Signal::getMaxValue() {
+    float max_val = 0.0f;
+    for (int ch = 0; ch < data.getChannels(); ch++) {
+        for (long smp=0; smp<data.getSampleCount(); smp++) {
+            if (std::abs(channel[ch][smp]) > max_val) {
+                max_val = std::abs(channel[ch][smp]);
+            }
+        }
+    }
+    return max_val;
+};
+
+Signal& Signal::normalize() {
+    float max_value = getMaxValue();
+    if( max_value > 1.0f) {
+        for (int ch = 0; ch < data.getChannels(); ch++) {
+            for (long smp=0; smp<data.getSampleCount(); smp++) {
+                channel[ch][smp] /= max_value;
+            }
+        }
+    }
+    return *this;
+};
+
 
 float* Signal::reconstruct(long center, long vecinity, float time) const { // reconstructs singal needed for resampling, in order to compute values at given sample rate
 
@@ -196,7 +201,7 @@ float* Signal::reconstruct(long center, long vecinity, float time) const { // re
     return value;
 };
 
-float** createBuffer(int number_of_channels, long number_of_samples) { // creates buffer for the signal data: buffer[channel][samples]
+float** Signal::createBuffer(int number_of_channels, long number_of_samples) { // creates buffer for the signal data: buffer[channel][samples]
 
     float** buffer = new float*[number_of_channels];
     for(int i=0; i<number_of_channels; i++) {
@@ -205,8 +210,15 @@ float** createBuffer(int number_of_channels, long number_of_samples) { // create
     return buffer;
 };
 
-Signal& Signal::resample(float new_sampling_rate) { // resamples any signal to a certain bitrate using reconstruction using sinc interpolation 
+void Signal::deleteBuffer(float** buffer, int number_of_channels) { // deletes the buffer for the signal data
+    for(int ch = 0; ch < number_of_channels; ch++){
+            delete[] buffer[ch];
+        }
+        delete[] buffer;
+        buffer = nullptr;
+};
 
+Signal& Signal::resample(float new_sampling_rate) { // resamples any signal to a certain bitrate using reconstruction with sinc interpolation 
     std::cout << 1.0f * data.getSampleCount() / data.getSampleRate() << "\n";
 
     long old_sampling_rate = data.getSampleRate();
@@ -234,24 +246,23 @@ Signal& Signal::resample(float new_sampling_rate) { // resamples any signal to a
         delete[] updated_samples;
     }
 
-    for(int i = 0; i < data.getChannels(); i++)
-    {
-        delete[] channel[i];
-    }
-    delete[] channel;
-    channel = nullptr;
-
+    deleteBuffer(channel, data.getChannels());
     channel = buff_channel;
 
     data.setSampleRate(new_sampling_rate);
     data.setSampleCount(new_sample_count);
-    data.setDataSize(new_sample_count * data.getChannels()
-    * (data.getBitsPerSample()/ 8));
+    data.setDataSize(new_sample_count * data.getChannels() * (data.getBytesPerSample()));
 
     std::cout << 1.0f * data.getSampleCount() / data.getSampleRate() << "\n";
     //data.printHeaderData(); //debugging
     return *this;
 };
+
+// Signal& Signal::volume(int increment) {
+
+// };
+
+
 
 void Signal::saveWav(const char* name) {
 
@@ -266,6 +277,8 @@ void Signal::saveWav(const char* name) {
         case 16:
             write16(file_out);
             break;
+        case 24:
+            write24(file_out);
         case 32:
             write32(file_out);
             break;
@@ -291,6 +304,17 @@ float Signal::decode16(const char* data) {
     return value / 32768.0f;
 };
 
+float Signal::decode24(const char* data) {
+    int32_t value =
+        (static_cast<unsigned char>(data[0])) |
+        (static_cast<unsigned char>(data[1]) << 8) |
+        (static_cast<unsigned char>(data[2]) << 16);
+    if (value & 0x00800000) {
+        value |= 0xFF000000;
+    }
+    return static_cast<float>(value) / 8388608.0f;
+}
+
 float Signal::decode32(const char* data) {
     int32_t value;
     memcpy(&value, data, sizeof(value));
@@ -306,6 +330,9 @@ int16_t Signal::encode16(float data) {
     return static_cast<int16_t>(data * 32768.0f);
 };
 
+int32_t Signal::encode24(float data) {
+    return static_cast<int32_t>(data * 8388607.0f);
+};
 int32_t Signal::encode32(float data) {
     return static_cast<int32_t>(data * 2147483648.0f);
 };
@@ -317,7 +344,7 @@ void Signal::write8(FILE* file_out) {
             fwrite(&value, sizeof(value), 1, file_out);
         }
     }
-}
+};
 
 void Signal::write16(FILE* file_out) {
     for (long i = 0; i < data.getSampleCount(); i++) {
@@ -326,7 +353,20 @@ void Signal::write16(FILE* file_out) {
             fwrite(&value, sizeof(value), 1, file_out);
         }
     }
-}
+};
+
+void Signal::write24(FILE* file_out) {
+    for (long i = 0; i < data.getSampleCount(); i++) {
+        for (int ch = 0; ch < data.getChannels(); ch++) {
+            int32_t value = encode24(channel[ch][i]);
+            unsigned char bytes[3];
+            bytes[0] = value & 0xFF;
+            bytes[1] = (value >> 8) & 0xFF;
+            bytes[2] = (value >> 16) & 0xFF;
+            fwrite(bytes, sizeof(bytes), 1, file_out);
+        }
+    }
+};
 
 void Signal::write32(FILE* file_out) {
     for (long i = 0; i < data.getSampleCount(); i++) {
