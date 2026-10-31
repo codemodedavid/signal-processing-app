@@ -1,11 +1,12 @@
 #include "signal_data.h"
 
 
-// ctors
+// default constructor
 SignalData::SignalData() {
 
-};
+}
 
+// constructor from a given header
 SignalData::SignalData(const unsigned char* header) {
     memcpy(riff, header + 0, 4);
     memcpy(&fileSizeMinus8, header + 4, 4);
@@ -22,33 +23,54 @@ SignalData::SignalData(const unsigned char* header) {
     memcpy(&dataSize, header + 40, 4);
 
     sampleCount=dataSize / blockAlign;
-};
+}
+
+// assigment operator
+SignalData& SignalData::operator=(const SignalData& other) {
+    if (this != &other) {
+        memcpy(riff, other.riff, sizeof(riff));
+        fileSizeMinus8 = other.fileSizeMinus8;
+        memcpy(wave, other.wave, sizeof(wave));
+        memcpy(fmt, other.fmt, sizeof(fmt));
+        formatChunkSize = other.formatChunkSize;
+        audioFormat = other.audioFormat;
+        channels = other.channels;
+        sampleRate = other.sampleRate;
+        byteRate = other.byteRate;
+        blockAlign = other.blockAlign;
+        bitsPerSample = other.bitsPerSample;
+        memcpy(data, other.data, sizeof(data));
+        dataSize = other.dataSize;
+        sampleCount = other.sampleCount;
+    }
+    return *this;
+}
 
 // setters
 void SignalData::setDataSize(long dataSize) {
     this->dataSize = dataSize;
-};
+}
 void SignalData::setSampleRate(long sampleRate) {
     this->sampleRate = sampleRate;
-};
+}
 void SignalData::setSampleCount(long sampleCount) {
     this->sampleCount = sampleCount;
-};
+}
 
 void SignalData::setChannels(int num_channels) {
     this->channels = num_channels;
-};
+}
 
 // getters
 long SignalData::getDataSize() const {
     return dataSize;
-};
+}
 long SignalData::getSampleRate() const {
     return sampleRate;
-};
+}
 long SignalData::getSampleCount() const {
     return sampleCount;
-};
+}
 
 int SignalData::getBitsPerSample() const {
     return bitsPerSample;
@@ -64,6 +86,7 @@ int SignalData::getBlockAlign() const {
     return blockAlign;
 }
 
+// returns the header as a pointer
 unsigned char* SignalData::getHeader() const {
     unsigned char* header = new unsigned char[44];
     memcpy(header + 0, riff, 4);
@@ -82,7 +105,8 @@ unsigned char* SignalData::getHeader() const {
 
     return header;
 }
-// afisare
+
+// prints the .wav header information
 void SignalData::printHeaderData() const {
     std::cout << "riff: " << std::string(riff, 4) << "\n";
     std::cout << "fileSizeMinus8: " << fileSizeMinus8 << "\n";
@@ -98,4 +122,4 @@ void SignalData::printHeaderData() const {
     std::cout << "data: " << std::string(data, 4) << "\n";
     std::cout << "dataSize: " << dataSize << "\n";
     std::cout << "sampleCount: " << sampleCount << "\n";
-};
+}

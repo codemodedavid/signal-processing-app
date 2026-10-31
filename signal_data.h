@@ -39,6 +39,7 @@ class SignalData {
 public:
     SignalData();
     SignalData(const unsigned char* header);
+    SignalData& operator=(const SignalData& other);
 
     void setDataSize(long audioSize);
     void setSampleRate(long sampleRate);

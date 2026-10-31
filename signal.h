@@ -3,6 +3,7 @@
 #define SIGNAL_H
 
 #include "signal_data.h"
+#include "audio_buffer.h"
 #include <cstdint>
 #include <cstdio>
 #include <cmath>
@@ -10,44 +11,40 @@
 class Signal {
     char* name;
     SignalData data;
-    float** channel;
-
-    static float** createBuffer(int number_of_channels, long number_of_samples);
-    static void deleteBuffer(float** buffer, int number_of_channels);
-
-    static float decode8(const char* data);
-    static float decode16(const char* data);
-    static float decode24(const char* data);
-    static float decode32(const char* data);
-
-    static uint8_t encode8(float data);
-    static int16_t encode16(float data);
-    static int32_t encode24(float data);
-    static int32_t encode32(float data);
-
-    void write8(FILE* file);
-    void write16(FILE* file);
-    void write24(FILE* file);
-    void write32(FILE* file);
-
-    float* reconstruct(long center, long vecinity, float time) const;
-
-    float getMaxValue();
+    AudioBuffer buffer;
 public:
+    Signal();
     Signal(int number_of_channels, long number_of_samples);
     Signal(const char* name);
     ~Signal();
     Signal(const Signal& other);
     
-    //Signal& operator*(const Signal& other);   old operator declaration 
+    Signal& operator=(const Signal& other);
     Signal operator*(const Signal& other) const;
 
+    void setDataSize(long audioSize);
+    void setSampleRate(long sampleRate);
+    void setSampleCount(long sampleCount);
+    void setChannels(int num_channels);
 
-    Signal& resample(float new_sampling_rate);
-    Signal& normalize();
-    //Signal& volume(int increment);
+    long getDataSize() const;
+    long getSampleRate() const;
+    long getSampleCount() const;
+    int getBitsPerSample() const;
+    int getBytesPerSample() const;
+    int getChannels() const;
+    int getBlockAlign() const;
+    float getMaxValue() const;
 
-    void saveWav(const char* name);
+    const SignalData& getSignalData() const;
+    const AudioBuffer& getAudioBuffer() const;
+
+    void setSignalData(SignalData& data);
+    void setAudioBuffer(AudioBuffer& buffer);
+
+
+    float getSample(int channel, long number) const;
+    void setSample(int channel, long number, float new_value);
 
     void printDataSample(uint32_t start, uint32_t finish) const;
     void printDataTime(float start, float finish) const;
