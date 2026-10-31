@@ -1,5 +1,4 @@
 #ifndef COMPLEX_H
-
 #define COMPLEX_H
 
 class Complex {
@@ -10,6 +9,9 @@ public:
     Complex();
     Complex(double r, double i);
     Complex(const Complex& other);
+
+    // assignment
+    Complex& operator=(const Complex& other);
 
     // getters
     double real() const;
